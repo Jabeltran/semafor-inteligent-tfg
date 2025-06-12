@@ -58,7 +58,7 @@ Per replicar o executar aquest projecte, seguiu els passos bàsics:
     `cd semafor-inteligent-tfg`
 
 2.  **Configuració del Firmware (Arduino Due i ESP32):**
-    * Obriu els projectes (`.ino`) amb Arduino IDE o PlatformIO.
+    * Obriu els projectes (`.cpp`) amb Arduino IDE o PlatformIO.
     * Instal·leu les llibreries necessàries (`ArduinoJson`, `HTTPClient`, `Adafruit_Sensor`, `Adafruit_AHTX0`, `Adafruit_BMP280`).
     * Configureu les credencials Wi-Fi a l'ESP32.
     * Carregueu el firmware corresponent a cada placa.
