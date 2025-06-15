@@ -4,9 +4,12 @@
 #include <Adafruit_BMP280.h>
 #include <Wire.h>
 
+// A l'Arduino Due, els pins 16 (TX2) i 17 (RX2) corresponen a Serial2.
+#define ESP32_SERIAL Serial2
+
 // Inicialització dels sensors AHT20 i BMP280 que fa servir I2C 
 Adafruit_AHTX0 aht;
-Adafruit_BMP280 bmp; ect
+Adafruit_BMP280 bmp;
 
 // Definició dels pins per a les llums del semàfor
 const int LED_COTXE_VERD = 22;
@@ -90,7 +93,9 @@ float temperatura = 0.0;
 float humitat = 0.0;
 float pressio = 0.0;
 unsigned long tempsUltimaLecturaAmbiental = 0;
-const long INTERVAL_LECTURA_AMBIENTAL = 600000; // 10 minuts en milisegons
+const long INTERVAL_LECTURA_AMBIENTAL = 4000; // 10 minuts en milisegons
+const long INTERVAL_ENVIAMENT_AMBIENTAL = 4000; // 10 minuts
+
 
 // Protòtip de les funcions
 void configurarPins();
@@ -99,6 +104,9 @@ void llegirVelocitatUltrasons();
 int obtenirDistanciaUltrasons();
 float aplicarFiltreVelocitat(float novaVelocitat);
 void llegirEstatPluja();
+void llegirSensorsAmbientals();
+void controlarBrillantorLeds();
+void enviarDadesAmbientals();
 
 /**
 * Funció de configuració inicial del sistema.
@@ -112,7 +120,14 @@ void setup() {
   pinMode(TRIGGER_PIN, OUTPUT); // Configurem el pin Trigger com a sortida
   pinMode(ECHO_PIN, INPUT); // Configurem el pin Echo com a entrada
   digitalWrite(TRIGGER_PIN, LOW); // Inicialitzem el Trigger a nivell baix
+
+  // Inicialitza la comunicació serial USB per a depuració amb el monitor serial.
   Serial.begin(9600);
+  Serial.println("Arduino Due: Iniciat.");
+
+  //Inicialitza el port serial per a la comunicació amb l'ESP32 (pins 16 i 17)
+  ESP32_SERIAL.begin(9600);
+  Serial.println("ESP32_SERIAL (Serial2) inicialitzat a 9600 bauds.");
 
   // Inicialitzem l'array de lectures de velocitat a zero
   for (int i = 0; i < NUM_LECTURES_VELOCITAT; i++){
@@ -125,7 +140,7 @@ void setup() {
     if (!aht.begin()) {
         Serial.println("No s'ha trobat sensor AHT20!");
     }
-    if (!bmp.begin(0x77)) { adreça I2C 
+    if (!bmp.begin(0x77)) { //adreça I2C 
         Serial.println("No s'ha trobat sensor BMP280!");
     }
   // Configuració del pin PWM que controla la intensitat dels leds
@@ -147,10 +162,9 @@ void loop() {
 
   unsigned long tempsActual = millis();
   static unsigned long tempsUltimEnviamentAmbiental = 0;
-  const long INTERVA_ENVIAMENT_AMBIENTA = 600000; // 10 minuts
 
-  if (tempsActual - tempsUltimaLecturaAmbiental >= INTERVA_ENVIAMENT_AMBIENTA){
-    tempsUltimEnviamentAmbiental = tempsActual;
+  if (tempsActual - tempsUltimEnviamentAmbiental >= INTERVAL_ENVIAMENT_AMBIENTAL){
+    tempsUltimEnviamentAmbiental = tempsActual; // Actualitzem l'últim moment d'enviament
     enviarDadesAmbientals();
   }
   
@@ -176,14 +190,14 @@ void configurarPins(){
  *  Funció per enviar les dades ambientals al EP32
  *************************************************/
 void enviarDadesAmbientals(){
-  Serial.print("AMBIENT,");
-    Serial.print(temperatura);
-    Serial.print(",");
-    Serial.print(humitat);
-    Serial.print(",");
-    Serial.print(pressio);
-    Serial.print(",");
-    Serial.println(estaPlovent ? 1 : 0);
+  ESP32_SERIAL.print("AMBIENT,");
+    ESP32_SERIAL.print(temperatura);
+    ESP32_SERIAL.print(",");
+    ESP32_SERIAL.print(humitat);
+    ESP32_SERIAL.print(",");
+    ESP32_SERIAL.print(pressio);
+    ESP32_SERIAL.print(",");
+    ESP32_SERIAL.println(estaPlovent ? 1 : 0);
     Serial.println("Dades ambientals enviades.");
 }
 
@@ -231,8 +245,8 @@ void controlarSemafor(){
       }
 
       // Enviem la velocitat filtrada pel port sèrie
-      Serial.print("VELOCITAT,");
-      Serial.println(velocitatCmsFiltrada);
+      ESP32_SERIAL.print("VELOCITAT,");
+      ESP32_SERIAL.println(velocitatCmsFiltrada);
       Serial.println("Dada de velocitat enviada durant l'ambre.");
       
     }
