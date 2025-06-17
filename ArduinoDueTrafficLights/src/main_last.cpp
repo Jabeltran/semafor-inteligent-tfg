@@ -69,8 +69,8 @@ int indexLecturaVelocitat = 0;
 float velocitatCmsFiltrada = 0;
 
 
-const int UMBRAL_PRESENCIA_VEHICLE_MAX = 200;   // Distància màxima per considerar presència
-const int UMBRAL_PRESENCIA_VEHICLE_MIN = 40;    // Distància mínima
+const int UMBRAL_PRESENCIA_VEHICLE_MAX = 60;   // Distància màxima per considerar presència
+const int UMBRAL_PRESENCIA_VEHICLE_MIN = 30;    // Distància mínima
 const long TEMPS_ESTABILITZACIO_PRESENCIA = 500;  // Temps en ms per confirmar presència
 unsigned long tempsPrimerVehicleDetectat = 0;
 bool vehiclePresent = false;
@@ -81,7 +81,7 @@ const long AMPLIFICACIO_MAXIMA_GROC = 3000; // Ampliació màxima en milisegons 
 
 // Variables per al control de la lectura del sensor de pluja
 unsigned long tempsUltimaLecturaPluja = 0;
-const long INTERVAL_LECTURA_PLUJA = 600000; // 10 minuts en milisegons
+const long INTERVAL_LECTURA_PLUJA = 4000; //600000 10 minuts en milisegons
 bool estaPlovent = false;
 const long SEGONS_EXTRA_PLUJA = 2000; // Segons extres per sumar al temps de la llum ambar
 
@@ -235,7 +235,7 @@ void controlarSemafor(){
   case GROC_COTXES:
     // Comprovem si hi ha un vehicle present
     if(vehiclePresent){
-      if(velocitatCmsFiltrada < LLINDAR_VELOCITAT_NORMAL && velocitatCmsFiltrada >= LLINDAR_VELOCITAT_AMPLIACION_MAXIMA){
+      if(velocitatCmsFiltrada > 5 && velocitatCmsFiltrada < LLINDAR_VELOCITAT_NORMAL && velocitatCmsFiltrada >= LLINDAR_VELOCITAT_AMPLIACION_MAXIMA){
         // Calculem la proporció d'ampliació inversament proporcional a la velocitat
         float proporcio = 1.0 - (float)(velocitatCmsFiltrada - LLINDAR_VELOCITAT_AMPLIACION_MAXIMA) / (LLINDAR_VELOCITAT_NORMAL - LLINDAR_VELOCITAT_AMPLIACION_MAXIMA);
         duracioGrocActual += (unsigned long)(AMPLIFICACIO_MAXIMA_GROC * proporcio);
@@ -243,7 +243,7 @@ void controlarSemafor(){
         Serial.print("Ambre ampliat a: ");
         Serial.print(duracioGrocActual);
         Serial.println(" ms");
-      } else if (velocitatCmsFiltrada < LLINDAR_VELOCITAT_AMPLIACION_MAXIMA){
+      } else if (velocitatCmsFiltrada > 5 && velocitatCmsFiltrada < LLINDAR_VELOCITAT_AMPLIACION_MAXIMA){
         // Si la velocitat és molt baixa, ampliem al màxim el tempps
         duracioGrocActual += (unsigned long)AMPLIFICACIO_MAXIMA_GROC;
 
@@ -257,9 +257,14 @@ void controlarSemafor(){
       
       // Envia la velocitat a l'ESP32 només UNA vegada si encara no s'ha enviat per cicle de GROC_COTXES
       if (!velocitatEnviadaGroc) {
-        ESP32_SERIAL.print("VELOCITAT,");
-        ESP32_SERIAL.println(velocitatCmsFiltrada);
-        Serial.println("Dada de velocitat enviada a ESP32 durant l'ambre."); // Per depuració
+        if (velocitatCmsFiltrada > 5) { 
+            ESP32_SERIAL.print("VELOCITAT,");
+            ESP32_SERIAL.println(velocitatCmsFiltrada);
+            Serial.print("Dada de velocitat enviada a ESP32 durant l'ambre: ");
+            Serial.println(velocitatCmsFiltrada); // Per depuració
+          } else {
+            Serial.println("No s'envia velocitat (insignificant, <= 10 cm/s)."); // Missatge per depuració si no s'envia
+          }
         velocitatEnviadaGroc = true; // Marquem que ja s'ha enviat
       }
 
@@ -397,7 +402,7 @@ void llegirVelocitatUltrasons(){
     if (vehiclePresent && distanciaCmAnterior != -1) {      
       //Establim un umbral per a canvi de distàncies per a mitigar falses lectures
       int diferenciaDistancia = abs(distanciaCmActual - distanciaCmAnterior);
-        if (diferenciaDistancia > 5){
+        if (diferenciaDistancia > 2){
             // Si hi h alectura anterior, calculem la velocitat en cm/s sense filtrar
             velocitatCmsSenseFiltrar = (float)(abs(distanciaCmActual - distanciaCmAnterior)) / (INTERVAL_LECTURA_ULTRASONS / 1000.0);
             // Apliquem el filtre
